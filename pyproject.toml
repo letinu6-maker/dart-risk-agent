@@ -1,0 +1,16 @@
+[project]
+name = "dart-risk-agent"
+version = "0.1.0"
+description = "공시 변화 기반 상장기업 재무위험 조기경보 AI Agent"
+requires-python = ">=3.10"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
