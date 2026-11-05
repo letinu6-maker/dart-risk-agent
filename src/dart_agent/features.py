@@ -96,6 +96,13 @@ def audit_non_clean(opinion: str | None) -> float:
     return float(any(k in str(opinion) for k in NON_CLEAN_OPINIONS))
 
 
+def going_concern_flag(emphasis: str | None) -> float:
+    """감사보고서 강조사항·특기사항에 '계속기업'이 언급되면 1. 정보 없으면 NaN."""
+    if emphasis is None:
+        return math.nan
+    return float("계속기업" in str(emphasis))
+
+
 def count_events(filings: pd.DataFrame) -> dict[str, float]:
     """공시 목록에서 이벤트 건수."""
     titles = filings["report_nm"].astype(str) if len(filings) and "report_nm" in filings.columns else pd.Series([], dtype=str)
@@ -105,11 +112,13 @@ def count_events(filings: pd.DataFrame) -> dict[str, float]:
     }
 
 
-def build_feature_row(fs: pd.DataFrame, audit_opinion: str | None, filings: pd.DataFrame) -> dict[str, float]:
+def build_feature_row(fs: pd.DataFrame, audit_opinion: str | None, filings: pd.DataFrame,
+                      audit_emphasis: str | None = None) -> dict[str, float]:
     """한 기업·한 연도의 변수 한 줄. 전기 금액은 같은 재무제표의 frmtrm_amount를 쓴다."""
     cur = extract_accounts(fs, "thstrm_amount")
     prev = extract_accounts(fs, "frmtrm_amount") if "frmtrm_amount" in fs.columns else None
     row = compute_ratios(cur, prev)
     row["audit_non_clean"] = audit_non_clean(audit_opinion)
+    row["going_concern_flag"] = going_concern_flag(audit_emphasis)
     row.update(count_events(filings))
     return row

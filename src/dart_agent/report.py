@@ -21,13 +21,14 @@ FEATURE_KO = {
     "roa_change": "ROA 전년 대비 변화",
     "debt_to_assets_change": "부채비율 전년 대비 변화",
     "audit_non_clean": "감사의견 비적정",
+    "going_concern_flag": "감사보고서 계속기업 불확실성 언급",
     "n_major_holder_change": "최대주주 변경 공시 건수",
     "n_convertible_bond": "CB·BW·EB 발행 공시 건수",
     "n_rights_offering": "유상증자 공시 건수",
     "n_correction": "정정 공시 건수",
     "audit_text_change": "감사보고서 문구 변화량",
     "notes_text_change": "주석 문구 변화량",
-    "warning_terms_added": "새로 늘어난 경고성 문구 수",
+    "warning_terms_added": "올해 처음 등장한 경고 문구 종류 수",
 }
 
 SYSTEM_PROMPT = """너는 상장기업 공시를 분석하는 리스크 애널리스트다.

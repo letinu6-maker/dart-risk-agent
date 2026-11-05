@@ -28,6 +28,7 @@ def make_panel(n_firms: int = 400, years: range = range(2016, 2025), event_rate:
         "roa_change": -0.02 * risk + rng.normal(0, 0.03, n),
         "debt_to_assets_change": 0.03 * risk + rng.normal(0, 0.05, n),
         "audit_non_clean": (risk + rng.normal(0, 1, n) > 2.3).astype(float),
+        "going_concern_flag": (risk + rng.normal(0, 1, n) > 2.0).astype(float),
         "n_major_holder_change": rng.poisson(np.exp(0.5 * risk - 2)),
         "n_convertible_bond": rng.poisson(np.exp(0.6 * risk - 1.5)),
         "n_rights_offering": rng.poisson(np.exp(0.4 * risk - 1.8)),
@@ -35,7 +36,7 @@ def make_panel(n_firms: int = 400, years: range = range(2016, 2025), event_rate:
         # 문구 변화 변수: 위험과 약하게 연관 → "넣으면 오르는가" 실험이 의미 있게
         "audit_text_change": np.clip(0.05 * risk + rng.normal(0.1, 0.05, n), 0, 1),
         "notes_text_change": np.clip(0.06 * risk + rng.normal(0.15, 0.06, n), 0, 1),
-        "warning_terms_added": rng.poisson(np.exp(0.5 * risk - 0.5)),
+        "warning_terms_added": np.minimum(rng.poisson(np.exp(0.5 * risk - 1.5)), 12),
     })
     df["net_loss"] = (df["roa"] < 0).astype(float)
     df["ocf_negative"] = (df["ocf_to_assets"] < 0).astype(float)

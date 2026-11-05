@@ -24,6 +24,7 @@ FINANCIAL_FEATURES = [
     "roa_change",
     "debt_to_assets_change",
     "audit_non_clean",
+    "going_concern_flag",
     "n_major_holder_change",
     "n_convertible_bond",
     "n_rights_offering",

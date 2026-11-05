@@ -34,20 +34,20 @@ class RiskAgent:
 
         # ① 수집
         fs = collect.fetch_financials(self.dart, corp, year)
-        opinion = collect.fetch_audit_opinion(self.dart, corp, year)
+        audit = collect.fetch_audit_info(self.dart, corp, year)
         filings = collect.fetch_filings(self.dart, corp, f"{year}-01-01", f"{year}-12-31")
-        log.append(f"수집: 재무제표 {len(fs)}행, 감사의견 '{opinion}', 공시 {len(filings)}건")
+        log.append(f"수집: 재무제표 {len(fs)}행, 감사의견 '{audit['opinion']}', 공시 {len(filings)}건")
 
         # ② 변화 탐지
-        row = features.build_feature_row(fs, opinion, filings)
+        row = features.build_feature_row(fs, audit["opinion"], filings, audit["emphasis"])
         new_terms: list[str] = []
         if self.use_text:
             prev_no = collect.find_annual_report_rcept_no(self.dart, corp, year - 1)
             curr_no = collect.find_annual_report_rcept_no(self.dart, corp, year)
             if prev_no and curr_no:
                 tc = text_diff.text_change_features(
-                    collect.fetch_document_text(self.dart, prev_no),
-                    collect.fetch_document_text(self.dart, curr_no),
+                    collect.fetch_document_sections(self.dart, prev_no),
+                    collect.fetch_document_sections(self.dart, curr_no),
                 )
                 new_terms = tc.pop("new_warning_terms")
                 row.update(tc)

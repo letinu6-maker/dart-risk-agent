@@ -1,7 +1,7 @@
 """① 수집: OpenDART API에서 재무제표, 감사의견, 공시 목록, 원문을 가져온다.
 
 모든 함수는 OpenDartReader 객체(`dart`)를 첫 인자로 받는다.
-실제 API 응답 형태는 첫 수집 때 꼭 확인하고, 다르면 이 파일만 고치면 된다.
+응답 형태는 scripts/check_api.py로 확인했다 (opendartreader 0.3.3, 2026-11).
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ import re
 import pandas as pd
 
 ANNUAL_REPORT = "11011"  # 사업보고서
+TITLE_RE = re.compile(r"<TITLE[^>]*>(.*?)</TITLE>", re.S | re.I)
 
 
 def get_client(api_key: str | None = None):
@@ -45,17 +46,26 @@ def fetch_financials(dart, corp: str, year: int) -> pd.DataFrame:
     return pd.DataFrame()
 
 
-def fetch_audit_opinion(dart, corp: str, year: int) -> str | None:
-    """사업보고서의 '회계감사인의 명칭 및 감사의견'에서 당기 감사의견 문자열."""
+def fetch_audit_info(dart, corp: str, year: int) -> dict:
+    """'회계감사인의 명칭 및 감사의견'에서 당기 행의 감사의견과 강조사항.
+
+    실제 응답의 bsns_year는 '제56기\\n(당기)' 형태라 연도가 아니라 '당기'로 고른다.
+    """
     df = dart.report(corp, "회계감사", year, reprt_code=ANNUAL_REPORT)
     if df is None or len(df) == 0 or "adt_opinion" not in df.columns:
-        return None
-    # 첫 행이 당기인 경우가 일반적. bsns_year 컬럼이 있으면 그걸로 고른다.
+        return {"opinion": None, "emphasis": None}
     if "bsns_year" in df.columns:
-        cur = df[df["bsns_year"].astype(str).str.contains(str(year))]
+        cur = df[df["bsns_year"].astype(str).str.contains("당기")]
         if len(cur):
             df = cur
-    return str(df.iloc[0]["adt_opinion"])
+    r = df.iloc[0]
+    emphasis = " ".join(str(r[c]) for c in ("emphs_matter", "adt_reprt_spcmnt_matter")
+                        if c in df.columns and pd.notna(r[c]))
+    return {"opinion": str(r["adt_opinion"]), "emphasis": emphasis}
+
+
+def fetch_audit_opinion(dart, corp: str, year: int) -> str | None:
+    return fetch_audit_info(dart, corp, year)["opinion"]
 
 
 def fetch_filings(dart, corp: str, start: str, end: str) -> pd.DataFrame:
@@ -75,18 +85,36 @@ def find_annual_report_rcept_no(dart, corp: str, year: int) -> str | None:
     return str(hit.iloc[0]["rcept_no"]) if len(hit) else None
 
 
-def fetch_document_text(dart, rcept_no: str) -> str:
-    """공시 원문(XML/HTML)을 태그 없는 텍스트로.
-
-    document()는 본문 파일 하나만 주고, 감사보고서·연결감사보고서는 첨부 파일에 있다.
-    그래서 document_all()로 전부 받아 이어 붙인다 (없는 버전이면 document로 대체).
-    """
+def _document_files(dart, rcept_no: str) -> list[str]:
+    """document()는 본문 파일 하나만 주고 감사보고서는 첨부 파일에 있으므로 document_all()을 쓴다."""
     if hasattr(dart, "document_all"):
-        parts = dart.document_all(rcept_no) or []
-        raw = "\n".join(p for p in parts if p)
-    else:
-        raw = dart.document(rcept_no) or ""
-    return strip_markup(raw)
+        return [f for f in (dart.document_all(rcept_no) or []) if f]
+    return [dart.document(rcept_no) or ""]
+
+
+def split_sections(raw: str) -> list[tuple[str, str]]:
+    """DART 원문 XML을 <TITLE> 기준 (제목, 본문 텍스트) 목록으로 나눈다."""
+    parts = TITLE_RE.split(raw)
+    out = []
+    if strip_markup(parts[0]):
+        out.append(("", strip_markup(parts[0])))
+    for i in range(1, len(parts), 2):
+        body = parts[i + 1] if i + 1 < len(parts) else ""
+        out.append((strip_markup(parts[i]), strip_markup(body)))
+    return out
+
+
+def fetch_document_sections(dart, rcept_no: str) -> list[tuple[str, str]]:
+    """본문과 첨부(감사보고서 등)를 모두 섹션으로 나눠 이어 붙인다."""
+    secs: list[tuple[str, str]] = []
+    for raw in _document_files(dart, rcept_no):
+        secs += split_sections(raw)
+    return secs
+
+
+def fetch_document_text(dart, rcept_no: str) -> str:
+    """원문 전체를 태그 없는 텍스트 하나로."""
+    return strip_markup("\n".join(_document_files(dart, rcept_no)))
 
 
 def strip_markup(raw: str) -> str:

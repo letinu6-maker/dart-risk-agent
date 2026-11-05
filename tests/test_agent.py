@@ -19,7 +19,8 @@ def test_agent_end_to_end(tmp_path, monkeypatch):
     res = RiskAgent(str(path), dart=FakeDart()).run("000001", 2025, "테스트기업")
 
     assert 0 <= res.score <= 1
-    assert res.feature_row["audit_non_clean"] == 1.0
+    assert res.feature_row["audit_non_clean"] == 1.0  # '당기' 행을 골랐는지
+    assert res.feature_row["going_concern_flag"] == 1.0
     assert res.feature_row["audit_text_change"] > 0
     assert "테스트기업" in res.report and "투자 권유가 아닙니다" in res.report
     assert "계속기업" in res.report  # 새 경고 문구가 리포트 근거로 들어감

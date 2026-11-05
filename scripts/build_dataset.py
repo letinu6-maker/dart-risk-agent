@@ -44,15 +44,15 @@ def main():
                 fs = collect.fetch_financials(dart, corp, year)
                 if fs.empty:
                     continue
-                opinion = collect.fetch_audit_opinion(dart, corp, year)
+                audit = collect.fetch_audit_info(dart, corp, year)
                 filings = collect.fetch_filings(dart, corp, f"{year}-01-01", f"{year}-12-31")
-                row = features.build_feature_row(fs, opinion, filings)
+                row = features.build_feature_row(fs, audit["opinion"], filings, audit["emphasis"])
                 if args.text:
                     p = collect.find_annual_report_rcept_no(dart, corp, year - 1)
                     c = collect.find_annual_report_rcept_no(dart, corp, year)
                     if p and c:
-                        tc = text_diff.text_change_features(collect.fetch_document_text(dart, p),
-                                                            collect.fetch_document_text(dart, c))
+                        tc = text_diff.text_change_features(collect.fetch_document_sections(dart, p),
+                                                            collect.fetch_document_sections(dart, c))
                         tc.pop("new_warning_terms")
                         row.update(tc)
                 row.update(corp_code=corp, year=year)
