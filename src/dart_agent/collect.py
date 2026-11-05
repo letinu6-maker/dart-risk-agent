@@ -76,9 +76,17 @@ def find_annual_report_rcept_no(dart, corp: str, year: int) -> str | None:
 
 
 def fetch_document_text(dart, rcept_no: str) -> str:
-    """공시 원문(XML/HTML)을 태그 없는 텍스트로."""
-    raw = dart.document(rcept_no)
-    return strip_markup(raw or "")
+    """공시 원문(XML/HTML)을 태그 없는 텍스트로.
+
+    document()는 본문 파일 하나만 주고, 감사보고서·연결감사보고서는 첨부 파일에 있다.
+    그래서 document_all()로 전부 받아 이어 붙인다 (없는 버전이면 document로 대체).
+    """
+    if hasattr(dart, "document_all"):
+        parts = dart.document_all(rcept_no) or []
+        raw = "\n".join(p for p in parts if p)
+    else:
+        raw = dart.document(rcept_no) or ""
+    return strip_markup(raw)
 
 
 def strip_markup(raw: str) -> str:
