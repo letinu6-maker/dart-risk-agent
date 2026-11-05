@@ -16,7 +16,11 @@ ANNUAL_REPORT = "11011"  # 사업보고서
 
 def get_client(api_key: str | None = None):
     """OpenDartReader 클라이언트. 키는 인자 → 환경변수 DART_API_KEY 순으로 찾는다."""
-    import OpenDartReader  # 지연 import: 테스트는 API 없이 돌아가야 함
+    # 지연 import: 테스트는 API 없이 돌아가야 함
+    try:
+        from opendartreader import OpenDartReader  # 0.3 이상
+    except ImportError:
+        import OpenDartReader  # 0.2.x (모듈 자체가 호출 가능)
 
     try:
         from dotenv import load_dotenv
