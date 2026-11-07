@@ -25,7 +25,7 @@ FEATURE_KO = {
     "n_major_holder_change": "최대주주 변경 공시 건수",
     "n_convertible_bond": "CB·BW·EB 발행 공시 건수",
     "n_rights_offering": "유상증자 공시 건수",
-    "n_correction": "정정 공시 건수",
+    "n_correction": "정기·감사보고서 정정 건수",
     "audit_text_change": "감사보고서 문구 변화량",
     "notes_text_change": "주석 문구 변화량",
     "warning_terms_added": "올해 처음 등장한 경고 문구 종류 수",

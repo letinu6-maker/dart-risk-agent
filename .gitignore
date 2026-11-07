@@ -13,3 +13,5 @@ models/*.joblib
 !models/risk_model.joblib
 docs_cache/
 .streamlit/secrets.toml
+shard.txt
+보낼파일/

@@ -67,6 +67,7 @@ pytest                  # API 키 없이 합성 데이터로 전체 파이프라
 
 - OpenDART는 **키당 하루 호출 한도**가 있어요. 2~3단계는 한도를 넘으면 스스로 멈추고, 다음 날 같은 명령을 다시 실행하면 이어서 수집해요.
 - 팀원끼리 나눠 돌리려면 각자 키로 `--shard 0/3`, `--shard 1/3`, `--shard 2/3`을 실행하고 `data/raw/cache/` 폴더를 합치면 돼요.
+- GitHub·터미널이 처음인 팀원은 `TEAM_GUIDE.md`대로 `team_collect.py`를 더블클릭하면 돼요. 설치·키 입력·2018~2024년 수집(문구 변화 포함)·결과 압축까지 한 번에 해요.
 - 1단계 뒤에 `events.csv`의 `report_nm`을 훑어보고 부실과 무관한 사건이 있으면 `src/dart_agent/labels.py`의 `EXCLUDE_TITLE`에 키워드를 추가하세요.
 
 ## 데모 화면

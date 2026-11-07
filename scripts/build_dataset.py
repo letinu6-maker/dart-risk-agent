@@ -57,6 +57,9 @@ def add_text(dart, corp: str, year: int, row: dict) -> dict:
     return row
 
 
+QUOTA_EXIT = 3  # 일일 한도로 멈췄을 때 종료 코드 (team_collect.py가 구분용으로 씀)
+
+
 def quota_exhausted(dart) -> bool:
     """확실히 있는 데이터(삼성전자 직전 2개 연도 중 하나)를 요청해 봐서 비면 한도 초과로 본다."""
     from datetime import date
@@ -121,7 +124,7 @@ def main():
                                     print(f"\n일일 호출 한도를 넘은 것으로 보여 멈춥니다 (이번 실행 약 {calls}회)."
                                           " 내일 같은 명령으로 이어서 수집하세요.")
                                     pending_missing.clear()
-                                    return
+                                    return QUOTA_EXIT
                                 flush_missing()
                             continue
                         flush_missing()  # 정상 응답이 왔으니 앞선 빈 응답은 진짜로 없는 해
@@ -166,4 +169,4 @@ def assemble(cache_dir: Path, args) -> None:
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)

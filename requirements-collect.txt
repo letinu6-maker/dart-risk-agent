@@ -1,0 +1,6 @@
+# 팀원 수집용 최소 패키지 (team_collect.py가 자동 설치)
+opendartreader>=0.3.3
+pandas>=2.0
+numpy>=1.24
+scikit-learn>=1.3
+python-dotenv>=1.0

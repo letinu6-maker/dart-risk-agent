@@ -27,7 +27,9 @@ def run(ws, dart, monkeypatch, *extra):
             "--start", "2020", "--end", "2023", "--cache-dir", str(ws / "cache"), "--out", str(ws / "panel.csv"),
             "--sleep", "0", "--stop-after-empty", "3", *extra]
     monkeypatch.setattr(sys, "argv", argv)
-    runpy.run_path(SCRIPT, run_name="__main__")
+    with pytest.raises(SystemExit) as exit_info:
+        runpy.run_path(SCRIPT, run_name="__main__")
+    run.last_exit = exit_info.value.code
     return pd.read_csv(ws / "panel.csv", dtype={"corp_code": str})
 
 
@@ -45,12 +47,14 @@ def test_quota_stop_does_not_poison_cache_and_resumes(workspace, monkeypatch, ca
     # 가짜 한도는 finstate_all 호출만 센다. 3행 뒤 한도 초과 → 빈 응답 3번 연속 → 확인 호출도 빔 → 멈춤
     run(workspace, FakeDart(quota=3), monkeypatch)
     assert "한도" in capsys.readouterr().out
+    assert run.last_exit == 3
     cached = {p.name: json.loads(p.read_text()) for p in (workspace / "cache").glob("*.json")}
     assert not any(v.get("missing") for v in cached.values())  # 한도 초과 빈 응답을 '없음'으로 기록하지 않음
     n_before = len(cached)
 
     panel = run(workspace, FakeDart(), monkeypatch)  # 다음 날 다시 실행
     assert len(panel) == 8 and n_before < 8
+    assert run.last_exit == 0
 
 
 def test_build_labels_script(tmp_path, monkeypatch):

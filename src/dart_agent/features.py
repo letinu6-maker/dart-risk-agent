@@ -7,6 +7,7 @@ account_id, account_nm, thstrm_amount(당기), frmtrm_amount(전기)
 from __future__ import annotations
 
 import math
+import re
 
 import pandas as pd
 
@@ -23,11 +24,14 @@ ACCOUNTS = {
 }
 
 # 공시 제목 키워드 → 이벤트 변수
-EVENT_KEYWORDS = {
-    "n_major_holder_change": ["최대주주변경", "최대주주 변경"],
-    "n_convertible_bond": ["전환사채", "신주인수권부사채", "교환사채"],
-    "n_rights_offering": ["유상증자"],
-    "n_correction": ["[기재정정]", "정정"],
+EVENT_PATTERNS = {
+    "n_major_holder_change": re.compile(r"최대주주\s*변경"),
+    "n_convertible_bond": re.compile(r"전환사채|신주인수권부사채|교환사채"),
+    "n_rights_offering": re.compile(r"유상증자"),
+    # 재무 숫자를 담은 정기보고서·감사보고서의 정정만 센다.
+    # 제목에 '정정'만 있으면 세면 공시가 많은 대기업일수록 커져서 위험 신호가 아니게 된다
+    # (삼성전자 2024: 정정 21건 → 이 기준으로는 정기보고서 정정만 남음).
+    "n_correction": re.compile(r"\[(?:기재|첨부)정정\].*(?:사업|반기|분기|감사)보고서"),
 }
 
 NON_CLEAN_OPINIONS = ("한정", "부적정", "거절")
@@ -107,8 +111,8 @@ def count_events(filings: pd.DataFrame) -> dict[str, float]:
     """공시 목록에서 이벤트 건수."""
     titles = filings["report_nm"].astype(str) if len(filings) and "report_nm" in filings.columns else pd.Series([], dtype=str)
     return {
-        name: float(sum(any(k in t for k in kws) for t in titles))
-        for name, kws in EVENT_KEYWORDS.items()
+        name: float(sum(bool(pat.search(t)) for t in titles))
+        for name, pat in EVENT_PATTERNS.items()
     }
 
 
