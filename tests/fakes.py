@@ -34,8 +34,24 @@ def fake_doc(audit: str, notes: str, year: int) -> list[str]:
 
 
 class FakeDart:
+    """listed_from: 기업별 첫 사업연도 (그 전 연도는 빈 응답). quota: 이 횟수를 넘으면 모든 응답이 빈 값."""
+
+    def __init__(self, listed_from=None, quota=None):
+        self.listed_from = listed_from or {}
+        self.quota = quota
+        self.calls = 0
+        self.corp_codes = pd.DataFrame({"corp_code": ["00000101", "00000102", "00000103"],
+                                        "corp_name": ["정상가", "정상나", "정상다"],
+                                        "stock_code": ["000101", "000102", "000103"]})
+
+    def _over(self):
+        self.calls += 1
+        return self.quota is not None and self.calls > self.quota
+
     def finstate_all(self, corp, year, reprt_code="11011", fs_div="CFS"):
-        return fake_finstate()
+        if self._over() or year < self.listed_from.get(corp, 0):
+            return pd.DataFrame()
+        return fake_finstate().assign(rcept_no=f"{year + 1}0311000001")
 
     def report(self, corp, key_word, year, reprt_code="11011"):
         return pd.DataFrame([
@@ -45,8 +61,19 @@ class FakeDart:
              "adt_reprt_spcmnt_matter": "-"},
         ])
 
-    def list(self, corp, start=None, end=None, kind="", final=True):
+    def list(self, corp=None, start=None, end=None, kind="", final=True):
         y = int(start[:4])
+        if kind == "I":  # 거래소공시 (기업 지정 없이 월 단위)
+            if start[5:7] != "04":
+                return pd.DataFrame()
+            return pd.DataFrame({
+                "corp_code": ["00000201", "00000202", "00000101"],
+                "corp_name": ["부실가", "케이스팩1호", "정상가"],
+                "stock_code": ["000201", "000202", "000101"],
+                "report_nm": ["관리종목지정(감사의견 비적정설)", "상장폐지결정(존속기간 만료)", "관리종목지정해제"],
+                "rcept_dt": [f"{y}0402", f"{y}0403", f"{y}0404"],
+                "rcept_no": [f"{y}0402000001", f"{y}0403000001", f"{y}0404000001"],
+            })
         if kind == "A":
             return pd.DataFrame([{"report_nm": f"사업보고서 ({y - 1}.12)", "rcept_no": f"{y}0315000001"}])
         return pd.DataFrame({"report_nm": ["최대주주변경", "전환사채권발행결정", "[기재정정]사업보고서", "주주총회소집공고"]})

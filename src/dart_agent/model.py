@@ -36,7 +36,12 @@ YEAR = "year"
 
 
 def time_split(df: pd.DataFrame, test_start_year: int, year_col: str = YEAR):
-    """test_start_year 이전 = train, 이후 = test. 무작위 분할은 미래 정보가 섞이므로 쓰지 않는다."""
+    """test_start_year 이전 = train, 이후 = test. 무작위 분할은 미래 정보가 섞이므로 쓰지 않는다.
+
+    label이 NaN인 행(사건이 이미 공개된 정보로 바로 생긴 경우)은 학습·평가에서 뺀다.
+    """
+    if LABEL in df.columns:
+        df = df.dropna(subset=[LABEL]).assign(**{LABEL: lambda d: d[LABEL].astype(int)})
     train = df[df[year_col] < test_start_year]
     test = df[df[year_col] >= test_start_year]
     assert len(train) and len(test), "train/test 중 하나가 비었습니다. test_start_year를 확인하세요."
@@ -46,7 +51,7 @@ def time_split(df: pd.DataFrame, test_start_year: int, year_col: str = YEAR):
 
 def build_models(random_state: int = 42) -> dict[str, Pipeline]:
     """불균형 대응으로 class_weight='balanced'. 결측은 중앙값 대체."""
-    impute = ("impute", SimpleImputer(strategy="median"))
+    impute = ("impute", SimpleImputer(strategy="median", keep_empty_features=True))  # 열이 전부 비어도 변수 순서 유지
     return {
         "Logistic": Pipeline([impute, ("scale", StandardScaler()),
                               ("clf", LogisticRegression(class_weight="balanced", max_iter=1000))]),

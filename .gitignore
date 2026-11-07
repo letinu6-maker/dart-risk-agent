@@ -10,4 +10,6 @@ data/processed/*
 !data/processed/.gitkeep
 .DS_Store
 models/*.joblib
+!models/risk_model.joblib
 docs_cache/
+.streamlit/secrets.toml

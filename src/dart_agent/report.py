@@ -79,9 +79,13 @@ def template_report(payload: dict) -> str:
     return "\n".join(lines)
 
 
+def llm_enabled() -> bool:
+    return bool(os.getenv("ANTHROPIC_API_KEY"))
+
+
 def generate_report(payload: dict, use_llm: bool | None = None) -> str:
     if use_llm is None:
-        use_llm = bool(os.getenv("ANTHROPIC_API_KEY"))
+        use_llm = llm_enabled()
     if not use_llm:
         return template_report(payload)
     import anthropic

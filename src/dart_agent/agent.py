@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import joblib
@@ -19,6 +20,18 @@ class AgentResult:
     contributions: list[dict]
     report: str
     log: list[str] = field(default_factory=list)
+    new_warning_terms: list[str] = field(default_factory=list)
+
+
+class _Log(list):
+    def __init__(self, on_step):
+        super().__init__()
+        self.on_step = on_step
+
+    def append(self, line):
+        super().append(line)
+        if self.on_step:
+            self.on_step(line)
 
 
 class RiskAgent:
@@ -29,11 +42,15 @@ class RiskAgent:
         self.dart = dart or collect.get_client()
         self.use_text = use_text
 
-    def run(self, corp: str, year: int, corp_name: str | None = None) -> AgentResult:
-        log = []
+    def run(self, corp: str, year: int, corp_name: str | None = None,
+            on_step: Callable[[str], None] | None = None) -> AgentResult:
+        """on_step: 단계가 끝날 때마다 로그 한 줄을 받는 콜백 (데모 화면의 진행 표시용)."""
+        log = _Log(on_step)
 
         # ① 수집
         fs = collect.fetch_financials(self.dart, corp, year)
+        if fs.empty:
+            raise ValueError(f"{corp}의 {year} 사업연도 사업보고서 재무제표를 찾지 못했습니다.")
         audit = collect.fetch_audit_info(self.dart, corp, year)
         filings = collect.fetch_filings(self.dart, corp, f"{year}-01-01", f"{year}-12-31")
         log.append(f"수집: 재무제표 {len(fs)}행, 감사의견 '{audit['opinion']}', 공시 {len(filings)}건")
@@ -64,7 +81,8 @@ class RiskAgent:
         # ④ 리포트
         payload = report.build_payload(corp_name or corp, year, score, contrib, new_terms)
         text = report.generate_report(payload)
-        return AgentResult(corp, year, score, row, contrib, text, log)
+        log.append("리포트: " + ("LLM 작성" if report.llm_enabled() else "템플릿 작성 (LLM 키 없음)"))
+        return AgentResult(corp, year, score, row, contrib, text, list(log), new_terms)
 
     def _explain(self, X: pd.DataFrame) -> list[dict]:
         from .model import explain_row
