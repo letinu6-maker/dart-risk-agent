@@ -131,3 +131,13 @@ def test_default_timeout_is_installed():
     finally:
         requests.sessions.Session.send = orig
     assert seen["timeout"] is not None
+
+
+def test_build_labels_events_only_keeps_corp_list(tmp_path, monkeypatch):
+    (tmp_path / "corp_list.csv").write_text("corp_code,corp_name,source\n00000999,원래목록,normal\n")
+    monkeypatch.setattr(collect, "get_client", lambda *a, **k: FakeDart())
+    monkeypatch.setattr(sys, "argv", ["build_labels.py", "--start", "2023", "--end", "2024", "--events-only",
+                                      "--out-dir", str(tmp_path), "--sleep", "0"])
+    runpy.run_path(str(Path(SCRIPT).with_name("build_labels.py")), run_name="__main__")
+    assert "원래목록" in (tmp_path / "corp_list.csv").read_text()
+    assert (tmp_path / "events.csv").exists()

@@ -32,6 +32,8 @@ def main():
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--out-dir", default="data/labels")
     ap.add_argument("--sleep", type=float, default=0.2)
+    ap.add_argument("--events-only", action="store_true",
+                    help="events.csv만 다시 만들고 corp_list.csv는 그대로 둔다 (수집을 시작한 뒤 사건 기간만 늘릴 때)")
     args = ap.parse_args()
 
     dart = collect.get_client()
@@ -52,6 +54,9 @@ def main():
     print(f"\n사건 {len(events)}건, 기업 {events['corp_code'].nunique()}곳 → {out / 'events.csv'}")
     print(events["event_type"].value_counts().to_string())
 
+    if args.events_only:
+        print("--events-only: corp_list.csv는 바꾸지 않았습니다.")
+        return
     universe = labels.sample_universe(dart.corp_codes, events, args.n_normal, args.seed)
     universe.to_csv(out / "corp_list.csv", index=False)
     print(f"학습 대상 기업 {len(universe)}곳 (사건 {sum(universe.source == 'event')}, "
