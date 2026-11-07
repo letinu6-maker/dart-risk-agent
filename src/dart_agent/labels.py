@@ -23,7 +23,7 @@ EVENT_PATTERNS = {
     "delisting": re.compile(r"상장폐지\s*(?:사유\s*발생|결정)|상장적격성\s*실질\s*심사\s*대상"),
 }
 # 부실이 아닌 폐지(스팩 존속기간 만료, 합병, 자진 상장폐지 등)와 해제·취소 공시는 뺀다
-EXCLUDE_TITLE = re.compile(r"해제|취소|철회|유예|합병|자진|지주회사|완전자회사|존속기간|예고|안내")
+EXCLUDE_TITLE = re.compile(r"해제|취소|철회|유예|합병|자진|지주회사|완전자회사|존속기간|예고|안내|해외증권시장")
 EXCLUDE_NAME = re.compile(r"스팩|기업인수목적|SPAC", re.I)
 
 
