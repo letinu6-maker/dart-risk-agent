@@ -15,8 +15,34 @@ ANNUAL_REPORT = "11011"  # 사업보고서
 TITLE_RE = re.compile(r"<TITLE[^>]*>(.*?)</TITLE>", re.S | re.I)
 
 
+HTTP_TIMEOUT = 60  # 초
+
+
+def install_default_timeout(seconds: float = HTTP_TIMEOUT) -> None:
+    """OpenDartReader는 requests.get에 timeout을 주지 않는다.
+
+    노트북을 덮거나 와이파이가 끊기면 응답 없는 요청을 영원히 기다리며 멈춘다.
+    모든 requests 호출에 기본 timeout을 걸어, 끊기면 오류로 넘어가게 한다
+    (그 행은 저장되지 않아 다음 실행 때 다시 받는다).
+    """
+    import requests
+
+    if getattr(requests.sessions.Session.request, "_dart_timeout", False):
+        return
+    original = requests.sessions.Session.request
+
+    def request(self, method, url, **kwargs):
+        if kwargs.get("timeout") is None:
+            kwargs["timeout"] = seconds
+        return original(self, method, url, **kwargs)
+
+    request._dart_timeout = True
+    requests.sessions.Session.request = request
+
+
 def get_client(api_key: str | None = None):
     """OpenDartReader 클라이언트. 키는 인자 → 환경변수 DART_API_KEY 순으로 찾는다."""
+    install_default_timeout()
     # 지연 import: 테스트는 API 없이 돌아가야 함
     try:
         from opendartreader import OpenDartReader  # 0.3 이상

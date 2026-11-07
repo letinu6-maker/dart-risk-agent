@@ -45,6 +45,11 @@ def collect_row(dart, corp: str, year: int) -> dict | None:
     return row
 
 
+def is_permanent(err: Exception) -> bool:
+    """다시 받아도 결과가 같은 오류. OpenDART 014 = 파일이 존재하지 않음."""
+    return "'014'" in str(err) or "파일이 존재하지 않습니다" in str(err)
+
+
 def add_text(dart, corp: str, year: int, row: dict) -> dict:
     p = collect.find_annual_report_rcept_no(dart, corp, year - 1)
     c = collect.find_annual_report_rcept_no(dart, corp, year)
@@ -128,8 +133,16 @@ def main():
                                 flush_missing()
                             continue
                         flush_missing()  # 정상 응답이 왔으니 앞선 빈 응답은 진짜로 없는 해
+                        # 재무 변수는 먼저 저장 → 문구 단계에서 끊겨도 재무는 다시 안 받음
+                        cp.write_text(json.dumps(row, ensure_ascii=False))
                     if need_text:
-                        row = add_text(dart, corp, year, row)
+                        try:
+                            row = add_text(dart, corp, year, row)
+                        except Exception as e:
+                            if not is_permanent(e):
+                                raise  # 네트워크 끊김 등: 저장하지 않고 다음 실행 때 다시
+                            # 원문 파일이 DART에 없는 경우(014): 문구 변수만 비우고 재무 변수는 저장
+                            row.update(text_done=True, text_error=str(e)[:200])
                         calls += 4
                     cp.write_text(json.dumps(row, ensure_ascii=False))
                 except Exception as e:  # 한 기업 실패가 전체를 멈추지 않게

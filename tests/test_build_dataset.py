@@ -74,3 +74,60 @@ def test_text_added_later_only_fetches_text(workspace, monkeypatch):
     panel = run(workspace, dart, monkeypatch, "--text")
     assert panel["audit_text_change"].notna().all()
     assert dart.calls == 0  # 재무제표는 다시 부르지 않음 (finstate_all 호출 0회)
+
+
+class MissingDocDart(FakeDart):
+    """원문 파일이 DART에 없는 기업 (status 014)."""
+
+    def document_all(self, rcept_no):
+        raise ValueError({"status": "014", "message": "파일이 존재하지 않습니다."})
+
+
+class FlakyDocDart(FakeDart):
+    """원문 받는 중 네트워크가 끊기는 경우."""
+
+    def document_all(self, rcept_no):
+        raise ConnectionError("Read timed out")
+
+
+def test_missing_document_keeps_financial_row(workspace, monkeypatch):
+    panel = run(workspace, MissingDocDart(), monkeypatch, "--text")
+    assert len(panel) == 8                                # 014여도 재무 변수 행은 남음
+    assert panel["capital_impairment"].notna().all()
+    assert panel["text_error"].str.contains("014").all()
+    dart = MissingDocDart()
+    run(workspace, dart, monkeypatch, "--text")
+    assert dart.calls == 0                                # 다시 실행해도 재시도 안 함
+
+
+def test_network_drop_in_text_step_retries_text_only(workspace, monkeypatch):
+    run(workspace, FlakyDocDart(), monkeypatch, "--text")
+    cached = [json.loads(p.read_text()) for p in (workspace / "cache").glob("*.json")]
+    assert len(cached) == 8 and not any(c.get("text_done") for c in cached)  # 재무는 저장, 문구는 미완
+    dart = FakeDart()
+    panel = run(workspace, dart, monkeypatch, "--text")   # 연결 회복 후
+    assert dart.calls == 0                                # 재무제표는 다시 안 부름
+    assert panel["audit_text_change"].notna().all()
+
+
+def test_default_timeout_is_installed():
+    import requests
+
+    collect.install_default_timeout(5)
+    seen = {}
+
+    class Stop(Exception):
+        pass
+
+    def fake_send(self, request, **kwargs):
+        seen["timeout"] = kwargs.get("timeout")
+        raise Stop
+
+    orig = requests.sessions.Session.send
+    requests.sessions.Session.send = fake_send
+    try:
+        with pytest.raises(Stop):
+            requests.get("http://example.invalid")
+    finally:
+        requests.sessions.Session.send = orig
+    assert seen["timeout"] is not None
