@@ -79,22 +79,76 @@ def template_report(payload: dict) -> str:
     return "\n".join(lines)
 
 
+GEMINI_DEFAULT_MODEL = "gemini-3.5-flash-lite"  # 무료 등급으로 쓰기 좋은 가벼운 모델. GEMINI_MODEL로 바꿀 수 있음
+CLAUDE_DEFAULT_MODEL = "claude-sonnet-5-5"
+
+
+def llm_provider() -> str | None:
+    """키가 있는 LLM. Gemini(무료 등급)를 우선 쓰고, 없으면 Claude, 둘 다 없으면 None(템플릿)."""
+    if os.getenv("GEMINI_API_KEY"):
+        return "gemini"
+    if os.getenv("ANTHROPIC_API_KEY"):
+        return "claude"
+    return None
+
+
 def llm_enabled() -> bool:
-    return bool(os.getenv("ANTHROPIC_API_KEY"))
+    return llm_provider() is not None
+
+
+def _user_message(payload: dict) -> str:
+    return json.dumps(payload, ensure_ascii=False, indent=2)
+
+
+def _gemini(payload: dict) -> str:
+    from google import genai
+    from google.genai import types
+
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    resp = client.models.generate_content(
+        model=os.getenv("GEMINI_MODEL", GEMINI_DEFAULT_MODEL),
+        contents=_user_message(payload),
+        config=types.GenerateContentConfig(system_instruction=SYSTEM_PROMPT, max_output_tokens=1500,
+                                           temperature=0.3),
+    )
+    if not resp.text:
+        raise RuntimeError("Gemini가 빈 응답을 돌려줬습니다.")
+    return resp.text
+
+
+def _claude(payload: dict) -> str:
+    import anthropic
+
+    msg = anthropic.Anthropic().messages.create(
+        model=os.getenv("LLM_MODEL", CLAUDE_DEFAULT_MODEL),
+        max_tokens=1500,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": _user_message(payload)}],
+    )
+    return msg.content[0].text
+
+
+LAST_STATUS = {"provider": None, "error": None}  # 직전 리포트를 무엇으로 썼는지 (로그·화면 표시용)
 
 
 def generate_report(payload: dict, use_llm: bool | None = None) -> str:
-    if use_llm is None:
-        use_llm = llm_enabled()
-    if not use_llm:
+    """LLM으로 리포트를 쓴다. 키가 없거나 호출이 실패하면(무료 한도 초과 등) 템플릿 문장으로 대신한다."""
+    provider = llm_provider() if use_llm is not False else None
+    LAST_STATUS.update(provider=None, error=None)
+    if provider is None:
         return template_report(payload)
-    import anthropic
+    try:
+        text = _gemini(payload) if provider == "gemini" else _claude(payload)
+        LAST_STATUS["provider"] = provider
+        return text
+    except Exception as e:  # 데모 중 LLM 오류로 화면이 깨지지 않게
+        LAST_STATUS["error"] = f"{provider}: {str(e)[:200]}"
+        return template_report(payload)
 
-    client = anthropic.Anthropic()
-    msg = client.messages.create(
-        model=os.getenv("LLM_MODEL", "claude-sonnet-5-5"),
-        max_tokens=1500,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": json.dumps(payload, ensure_ascii=False, indent=2)}],
-    )
-    return msg.content[0].text
+
+def status_line() -> str:
+    if LAST_STATUS["provider"]:
+        return f"{LAST_STATUS['provider']} 작성"
+    if LAST_STATUS["error"]:
+        return f"템플릿 작성 (LLM 호출 실패 → {LAST_STATUS['error']})"
+    return "템플릿 작성 (LLM 키 없음)"

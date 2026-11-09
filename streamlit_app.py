@@ -30,7 +30,7 @@ st.set_page_config(page_title="공시 위험 조기경보 Agent", page_icon="�
 def load_secrets() -> None:
     """Streamlit Cloud Secrets → 환경변수. 로컬은 .env를 collect.get_client가 읽는다."""
     try:
-        for k in ("DART_API_KEY", "ANTHROPIC_API_KEY", "LLM_MODEL"):
+        for k in ("DART_API_KEY", "GEMINI_API_KEY", "GEMINI_MODEL", "ANTHROPIC_API_KEY", "LLM_MODEL"):
             if k in st.secrets and not os.getenv(k):
                 os.environ[k] = str(st.secrets[k])
     except Exception:
@@ -108,7 +108,8 @@ def main():
             except ImportError:
                 pass
         st.write("OpenDART 키:", "✅" if has_key else "❌ 없음")
-        st.write("LLM 리포트:", "✅ 사용" if report.llm_enabled() else "템플릿 문장 (키 없음)")
+        provider = report.llm_provider()
+        st.write("LLM 리포트:", {"gemini": "✅ Gemini", "claude": "✅ Claude"}.get(provider, "템플릿 문장 (키 없음)"))
         st.write("모델:", "⚠️ 합성 데이터 임시 모델" if trained_on == "synthetic" else f"✅ {trained_on}")
         use_text = st.toggle("공시 문구 변화 분석", value=True,
                              help="사업보고서 원문 2개 연도를 받아 비교합니다. 30초~1분 더 걸려요.")

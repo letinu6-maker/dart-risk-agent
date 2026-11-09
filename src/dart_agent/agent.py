@@ -81,7 +81,7 @@ class RiskAgent:
         # ④ 리포트
         payload = report.build_payload(corp_name or corp, year, score, contrib, new_terms)
         text = report.generate_report(payload)
-        log.append("리포트: " + ("LLM 작성" if report.llm_enabled() else "템플릿 작성 (LLM 키 없음)"))
+        log.append("리포트: " + report.status_line())
         return AgentResult(corp, year, score, row, contrib, text, list(log), new_terms)
 
     def _explain(self, X: pd.DataFrame) -> list[dict]:

@@ -9,7 +9,8 @@ from fakes import FakeDart
 
 
 def test_agent_end_to_end(tmp_path, monkeypatch):
-    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)  # 템플릿 리포트
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)  # 템플릿 리포트
     df = make_panel(n_firms=200)
     feats = M.FINANCIAL_FEATURES + M.TEXT_FEATURES
     m = M.build_models()["Logistic"].fit(df[feats], df[M.LABEL])

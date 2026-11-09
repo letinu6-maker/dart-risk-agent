@@ -84,7 +84,7 @@ streamlit run streamlit_app.py
 3. **Advanced settings → Secrets**에 입력:
    ```toml
    DART_API_KEY = "발급받은키"
-   ANTHROPIC_API_KEY = "선택"
+   GEMINI_API_KEY = "선택 (무료, aistudio.google.com)"
    ```
 4. 비공개 저장소도 배포되지만, 앱 공개 범위는 Streamlit 설정에서 따로 정해요.
 

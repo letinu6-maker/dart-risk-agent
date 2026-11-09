@@ -16,6 +16,7 @@ def app(monkeypatch, tmp_path):
     monkeypatch.setenv("DART_API_KEY", "fake")
     monkeypatch.setenv("DART_AGENT_MODEL", str(tmp_path / "m.joblib"))
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setattr(collect, "get_client", lambda *a, **k: FakeDart())
     at = st_testing.AppTest.from_file(APP, default_timeout=60)
     return at
