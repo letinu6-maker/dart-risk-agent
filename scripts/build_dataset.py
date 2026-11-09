@@ -27,6 +27,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from dart_agent import collect, features, labels, text_diff  # noqa: E402
 
 
+def read_cache(path: Path) -> dict:
+    """캐시 JSON 읽기. 예전 버전은 Windows에서 cp949로 저장했으므로 UTF-8이 안 되면 cp949로 읽는다."""
+    raw = path.read_bytes()
+    for enc in ("utf-8", "cp949"):
+        try:
+            return json.loads(raw.decode(enc))
+        except UnicodeDecodeError:
+            continue
+    return json.loads(raw.decode("utf-8", errors="replace"))
+
+
 def cache_path(cache_dir: Path, corp: str, year: int) -> Path:
     return cache_dir / f"{corp}_{year}.json"
 
@@ -104,14 +115,14 @@ def main():
 
     def flush_missing():
         for p in pending_missing:
-            p.write_text(json.dumps({"missing": True}))
+            p.write_text(json.dumps({"missing": True}), encoding="utf-8")
         pending_missing.clear()
 
     try:
         for k, corp in enumerate(corps, 1):
             for year in range(args.start, args.end + 1):
                 cp = cache_path(cache_dir, corp, year)
-                row = json.loads(cp.read_text()) if cp.exists() else None
+                row = read_cache(cp) if cp.exists() else None
                 if row is not None and row.get("missing"):
                     continue  # 그 해 사업보고서가 없는 기업 (상장 전·폐지 후)
                 need_fin, need_text = row is None, args.text and not (row or {}).get("text_done")
@@ -134,7 +145,7 @@ def main():
                             continue
                         flush_missing()  # 정상 응답이 왔으니 앞선 빈 응답은 진짜로 없는 해
                         # 재무 변수는 먼저 저장 → 문구 단계에서 끊겨도 재무는 다시 안 받음
-                        cp.write_text(json.dumps(row, ensure_ascii=False))
+                        cp.write_text(json.dumps(row, ensure_ascii=False), encoding="utf-8")
                     if need_text:
                         try:
                             row = add_text(dart, corp, year, row)
@@ -144,7 +155,7 @@ def main():
                             # 원문 파일이 DART에 없는 경우(014): 문구 변수만 비우고 재무 변수는 저장
                             row.update(text_done=True, text_error=str(e)[:200])
                         calls += 4
-                    cp.write_text(json.dumps(row, ensure_ascii=False))
+                    cp.write_text(json.dumps(row, ensure_ascii=False), encoding="utf-8")
                 except Exception as e:  # 한 기업 실패가 전체를 멈추지 않게
                     print(f"[skip] {corp} {year}: {e}", file=sys.stderr)
                 time.sleep(args.sleep)
@@ -159,7 +170,7 @@ def main():
 def assemble(cache_dir: Path, args) -> None:
     rows = []
     for f in cache_dir.glob("*.json"):
-        r = json.loads(f.read_text())
+        r = read_cache(f)
         if r.get("missing"):
             continue
         corp, year = f.stem.rsplit("_", 1)

@@ -141,3 +141,17 @@ def test_build_labels_events_only_keeps_corp_list(tmp_path, monkeypatch):
     runpy.run_path(str(Path(SCRIPT).with_name("build_labels.py")), run_name="__main__")
     assert "원래목록" in (tmp_path / "corp_list.csv").read_text()
     assert (tmp_path / "events.csv").exists()
+
+
+def test_reads_windows_cp949_cache(workspace, monkeypatch):
+    """예전 버전이 Windows에서 cp949로 저장한 캐시도 합칠 수 있어야 한다."""
+    run(workspace, FakeDart(), monkeypatch, "--text")
+    for p in (workspace / "cache").glob("*.json"):
+        row = json.loads(p.read_text(encoding="utf-8"))
+        if not row.get("missing"):
+            row["text_error"] = "파일이 존재하지 않습니다"
+            p.write_bytes(json.dumps(row, ensure_ascii=False).encode("cp949"))
+    dart = FakeDart()
+    panel = run(workspace, dart, monkeypatch, "--text")
+    assert len(panel) == 8 and dart.calls == 0
+    assert (panel["text_error"] == "파일이 존재하지 않습니다").all()
