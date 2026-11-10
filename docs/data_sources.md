@@ -5,12 +5,12 @@
 
 | # | 데이터 | 제공처 | 접근 방법 | 라이선스 / 이용조건 | 수집일 | 범위·건수 | 전처리 |
 |---|---|---|---|---|---|---|---|
-| 1 | 단일회사 주요계정 / 전체 재무제표 | 금융감독원 OpenDART | OpenDART API (`fnlttSinglAcnt`, `fnlttSinglAcntAll`), `OpenDartReader.finstate`, `finstate_all` | OpenDART 이용약관 (출처 표시 후 이용) | | | 연결(CFS) 우선, 없으면 별도(OFS). 계정명 표준화 → 재무지표 계산 |
-| 2 | 회계감사인 명칭 및 감사의견 | 금융감독원 OpenDART | 정기보고서 주요정보 API (`accnutAdtorNmNdAdtOpinion`) | OpenDART 이용약관 | | | 적정 / 비적정(한정·부적정·의견거절) 이진화 |
-| 3 | 공시 목록 (최대주주 변경, CB·BW 발행, 유상증자 등) | 금융감독원 OpenDART | 공시검색 API (`list`) | OpenDART 이용약관 | | | 연도별 건수 집계 |
-| 4 | 사업보고서·감사보고서 원문 | 금융감독원 OpenDART | 공시서류원본 API (`document`), `OpenDartReader.document_all` | OpenDART 이용약관 | | | `<TITLE>` 기준 섹션 분리 → 감사보고서·주석 섹션 → 숫자 제거 → 전년 대비 TF-IDF 유사도, 새 경고 문구 |
-| 5 | 거래소공시: 관리종목 지정, 상장폐지 사유 발생·결정 (라벨) | 금융감독원 OpenDART (한국거래소가 제출한 공시) | 공시검색 API (`list`, `pblntf_ty=I`), 월 단위 | OpenDART 이용약관 | | | 제목 패턴으로 사건 분류, 해제·취소·합병·스팩 등 비부실 공시 제외 (`labels.py`) |
-| 6 | 기업 고유번호 목록 (표본 추출) | 금융감독원 OpenDART | 고유번호 API (`corpCode.xml`), `OpenDartReader.corp_codes` | OpenDART 이용약관 | | | 현재 상장 기업 중 무작위 표본 + 사건 기업 전부 |
+| 1 | 단일회사 주요계정 / 전체 재무제표 | 금융감독원 OpenDART | OpenDART API (`fnlttSinglAcnt`, `fnlttSinglAcntAll`), `OpenDartReader.finstate`, `finstate_all` | OpenDART 이용약관 (출처 표시 후 이용) | 2026-11-07 ~ 11-10 | 769개 기업 × 2018~2024 = 5,383건 요청 → 사업보고서 있는 3,680건 | 연결(CFS) 우선, 없으면 별도(OFS). 계정명 표준화 → 재무지표 계산 |
+| 2 | 회계감사인 명칭 및 감사의견 | 금융감독원 OpenDART | 정기보고서 주요정보 API (`accnutAdtorNmNdAdtOpinion`) | OpenDART 이용약관 | 2026-11-07 ~ 11-10 | 위와 같음 | 적정 / 비적정(한정·부적정·의견거절) 이진화 |
+| 3 | 공시 목록 (최대주주 변경, CB·BW 발행, 유상증자 등) | 금융감독원 OpenDART | 공시검색 API (`list`) | OpenDART 이용약관 | 2026-11-07 ~ 11-10 | 위와 같음 | 연도별 건수 집계 |
+| 4 | 사업보고서·감사보고서 원문 | 금융감독원 OpenDART | 공시서류원본 API (`document`), `OpenDartReader.document_all` | OpenDART 이용약관 | 2026-11-07 ~ 11-10 | 문구 변수 있는 행: 감사 66%, 주석 84% | `<TITLE>` 기준 섹션 분리 → 감사보고서·주석 섹션 → 숫자 제거 → 전년 대비 TF-IDF 유사도, 새 경고 문구 |
+| 5 | 거래소공시: 관리종목 지정, 상장폐지 사유 발생·결정 (라벨) | 금융감독원 OpenDART (한국거래소가 제출한 공시) | 공시검색 API (`list`, `pblntf_ty=I`), 월 단위 | OpenDART 이용약관 | 2026-11-10 | 2018-01 ~ 2026-11, 사건 1,763건 / 512개 기업 | 제목 패턴으로 사건 분류, 해제·취소·합병·스팩 등 비부실 공시 제외 (`labels.py`) |
+| 6 | 기업 고유번호 목록 (표본 추출) | 금융감독원 OpenDART | 고유번호 API (`corpCode.xml`), `OpenDartReader.corp_codes` | OpenDART 이용약관 | 2026-11-07 | 상장 기업 중 무작위 300곳 (seed 42) + 사건 기업 469곳 | 현재 상장 기업 중 무작위 표본 + 사건 기업 전부 |
 
 라벨도 OpenDART 한 곳에서 가져와 출처가 하나로 정리됩니다 (`scripts/build_labels.py`).
 

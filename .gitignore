@@ -8,6 +8,7 @@ data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+!data/processed/panel.csv
 .DS_Store
 models/*.joblib
 !models/risk_model.joblib
