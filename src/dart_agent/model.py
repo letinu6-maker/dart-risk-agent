@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
@@ -49,15 +50,39 @@ def time_split(df: pd.DataFrame, test_start_year: int, year_col: str = YEAR):
     return train, test
 
 
+class QuantileClipper(BaseEstimator, TransformerMixin):
+    """학습 데이터의 하위·상위 분위수로 값을 자른다 (윈저화).
+
+    매출이 거의 없는 기업은 영업이익률이 -594배, 매출 증가율이 1,498배처럼 튄다.
+    이런 극단값이 Logistic 계수를 뒤틀어 '영업이익률이 높을수록 위험' 같은
+    거꾸로 된 근거가 리포트에 나오므로, 학습 데이터 기준 1%·99%에서 자른다.
+    """
+
+    def __init__(self, lower: float = 0.01, upper: float = 0.99):
+        self.lower = lower
+        self.upper = upper
+
+    def fit(self, X, y=None):
+        X = np.asarray(X, dtype=float)
+        self.lo_ = np.nanquantile(X, self.lower, axis=0)
+        self.hi_ = np.nanquantile(X, self.upper, axis=0)
+        return self
+
+    def transform(self, X):
+        return np.clip(np.asarray(X, dtype=float), self.lo_, self.hi_)
+
+
 def build_models(random_state: int = 42) -> dict[str, Pipeline]:
-    """불균형 대응으로 class_weight='balanced'. 결측은 중앙값 대체."""
-    impute = ("impute", SimpleImputer(strategy="median", keep_empty_features=True))  # 열이 전부 비어도 변수 순서 유지
+    """불균형 대응으로 class_weight='balanced'. 극단값은 1%·99%에서 자르고, 결측은 중앙값 대체."""
+    def pre():  # 모델마다 새 전처리 객체 (공유하면 한 모델을 학습할 때 다른 모델 것도 바뀜)
+        return [("clip", QuantileClipper()), ("impute", SimpleImputer(strategy="median", keep_empty_features=True))]
+
     return {
-        "Logistic": Pipeline([impute, ("scale", StandardScaler()),
+        "Logistic": Pipeline([*pre(), ("scale", StandardScaler()),
                               ("clf", LogisticRegression(class_weight="balanced", max_iter=1000))]),
-        "DecisionTree": Pipeline([impute, ("clf", DecisionTreeClassifier(
+        "DecisionTree": Pipeline([*pre(), ("clf", DecisionTreeClassifier(
             max_depth=4, min_samples_leaf=20, class_weight="balanced", random_state=random_state))]),
-        "RandomForest": Pipeline([impute, ("clf", RandomForestClassifier(
+        "RandomForest": Pipeline([*pre(), ("clf", RandomForestClassifier(
             n_estimators=300, min_samples_leaf=5, class_weight="balanced", random_state=random_state, n_jobs=-1))]),
     }
 
@@ -93,7 +118,10 @@ def explain_row(model: Pipeline, row: pd.DataFrame, features: list[str], top: in
     리포트 단계에 넘기는 근거. Logistic이 아니면 중요도 × 값의 부호로 근사한다.
     """
     clf = model.named_steps["clf"]
-    x = model.named_steps["impute"].transform(row[features])
+    x = row[features].to_numpy(dtype=float)
+    if "clip" in model.named_steps:
+        x = model.named_steps["clip"].transform(x)
+    x = model.named_steps["impute"].transform(x)
     if "scale" in model.named_steps:
         x = model.named_steps["scale"].transform(x)
     if hasattr(clf, "coef_"):

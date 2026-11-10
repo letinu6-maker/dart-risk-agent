@@ -31,3 +31,15 @@ def test_explain_row_returns_top_features():
     m = M.build_models()["Logistic"].fit(df[feats], df[M.LABEL])
     out = M.explain_row(m, df.iloc[[0]], feats, top=3)
     assert len(out) == 3 and {"feature", "value", "contribution"} <= set(out[0])
+
+
+def test_clipper_limits_extremes_and_models_do_not_share_steps():
+    import numpy as np
+    import pandas as pd
+
+    X = pd.DataFrame({"a": list(range(100)) + [10_000]})
+    c = M.QuantileClipper().fit(X)
+    assert c.transform(X).max() < 200
+    models = M.build_models()
+    assert models["Logistic"].named_steps["clip"] is not models["RandomForest"].named_steps["clip"]
+    assert models["Logistic"].named_steps["impute"] is not models["DecisionTree"].named_steps["impute"]
